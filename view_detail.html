@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+    <script>
+      // https://developers.google.com/apps-script/guides/html/communication#forms
+      function preventFormSubmit() {
+        var forms = document.querySelectorAll('form');
+        for (var i = 0; i < forms.length; i++) {
+          forms[i].addEventListener('submit', function(event) {
+            event.preventDefault();
+          });
+        }
+      }
+      window.addEventListener('load', preventFormSubmit);
+
+      /**
+       *  タイムレコーダーの登録ボタンクリック時に発火
+       */
+      function handleWorkRecordFormSubmit(formObject) {
+        google.script.run.withSuccessHandler(function(shiftTime) {
+          if(formObject.target_type.value == "clock_in"){google.script.run.withSuccessHandler(function(clockInTimeSplitResult) {
+            google.script.run.withSuccessHandler(function(dev) {
+              if(dev > 15){
+                var reason = prompt("シフトとの乖離は" + dev + "分です。15分以上乖離してるため、理由を入力してください");
+              if (reason) {
+                google.script.run.sendReasonEmail(formObject.target_date.value, clockInTimeSplitResult, formObject.target_time.value, reason);  // メール送信関数を呼び出す
+                updateWRMessage('更新中....'); 
+                google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);
+              }
+              }
+              else{var message = "シフトとの乖離は" + dev + "分です。打刻しますか？";
+              if (window.confirm(message)) {
+              updateWRMessage('更新中....'); 
+              google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);
+              }
+              }
+            }).calculateShift(formObject.target_time.value, clockInTimeSplitResult);
+          }).clockInTimeSplit(shiftTime);}
+          else if(formObject.target_type.value == "clock_out"){
+            google.script.run.withSuccessHandler(function(clockOutTimeSplitResult) {
+            google.script.run.withSuccessHandler(function(dev) {
+              if(dev > 15){
+                var reason = prompt("シフトとの乖離は" + dev + "分です。15分以上乖離してるため、理由を入力してください");
+                if (reason) {
+                google.script.run.sendReasonEmail(formObject.target_date.value, clockOutTimeSplitResult, formObject.target_time.value, reason);  // メール送信関数を呼び出す
+                updateWRMessage('更新中....'); 
+                google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);
+              }
+              }
+              else{var message = "シフトとの乖離は" + dev + "分です。打刻しますか？";
+              if (window.confirm(message)) {
+              updateWRMessage('更新中....'); 
+              google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);
+              }
+              }
+            }).calculateShift(formObject.target_time.value, clockOutTimeSplitResult);
+          }).clockOutTimeSplit(shiftTime);
+          }
+          else{
+            updateWRMessage('更新中....'); 
+            google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);
+          }
+        }).checkShift(formObject.target_date.value);
+      }
+
+        /*updateWRMessage('更新中....');
+        // .gsファイルのpostWorkRecordファンクションを呼び出し、成功したらmessage更新
+        google.script.run.withSuccessHandler(updateWRMessage).saveWorkRecord(formObject);*/
+      /**
+       *  タイムレコーダーの登録ボタン下のメッセージを更新
+       */
+      function updateWRMessage(message) {
+        var div = document.getElementById('wr_submit_message');
+        div.innerHTML = message;
+      }
+      /**
+       *  メモの登録ボタンクリック時に発火
+       */ 
+      function handleMemoFormSubmit(formObject) {
+        updateMemoMessage('更新中....')
+        // .gsファイルのsaveWorkRecordファンクションを呼び出し、成功したらmessage更新
+        google.script.run.withSuccessHandler(updateMemoMessage).saveMemo(formObject);
+      }
+
+      /**
+       *  メモの登録ボタン下のメッセージを更新
+       */
+      function updateMemoMessage(message) {
+        var div = document.getElementById('memo_submit_message');
+        div.innerHTML = message;
+      }
+
+    </script>
+  </head>
+  <body>
+    <div>
+      <span>名前:</span>
+      <span>
+       <?
+          var emp = getEmployeeName()
+      ?>
+        <?= emp ?>
+      </span>
+    </div>
+    <div>
+      <h3>
+      <span>現在の勤務状況:</span>
+      <?
+          var sta = getEmployeeStatus()
+          var className = ""
+          if (sta == '勤務中') {
+              className = 'green';
+            } else if (sta == '休憩中') {
+              className = 'yellow';
+            } else if (sta == '退勤済') {
+              className = 'red';
+            }
+      ?>
+      <span class="<?= className ?>">
+        <?= sta ?>
+      </span>
+      <h3>
+    </div>
+    <div>
+      <h3>タイムレコーダー</h3>
+      <form id="workRecordForm" onsubmit="handleWorkRecordFormSubmit(this)">
+        <div>
+          <label>対象日時: </label>
+          <input type="date" name="target_date"/>
+          <input type="time" name="target_time"/>
+          <br/>
+          <label>登録種別</label>
+          <select name="target_type" id="pet-select">
+              <option value="clock_in">出勤</option>
+              <option value="break_begin">休憩開始</option>
+              <option value="break_end">休憩終了</option>
+              <option value="clock_out">退勤</option>
+          </select>
+          <div class="btn-frame">
+            <input type="submit" value="登録" class="btn"/>
+            <div id="wr_submit_message"></div>
+            <div>※登録ボタン押下後、数秒後にダイアログが表示されます。</div>
+            <a href="<?= getAppUrl() ?>?page=<?= 'shift' ?>">シフト表の確認はこちらから</a>
+          </div>
+        </div>
+      </form>
+      <div>
+        <div>
+      <h3>タイムレコーダー履歴</h3>
+      <div></div>
+      <table border="1">
+        <thead>
+          <th>日時</th>
+          <th>打刻履歴</th>
+          <th>実働時間</th>
+        </thead>
+        <tbody>
+          <?
+          var record = getTimeRecord();
+          for (var i = 0; i <= record.length - 1; i++) {
+          ?>
+          <tr>
+            <th>
+              <?= record[i]['date'] ?>
+            </th>
+            <th>
+              <?= record[i]['clockInTime']+"～"+record[i]['clockOutTime']+"（休憩 "+record[i]['breakBeginTime']+"～"+record[i]['breakEndTime']+" ）" ?>
+            </th>
+            <th>
+              <?= record[i]['workTime']+" 時間" ?>
+            </th>
+          </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <form id="memoForm" onsubmit="handleMemoFormSubmit(this)">
+        <span>勤怠チェックメモ:</span>
+        <input name="memo" type="text" size="50" value="<?=　getEmpMemo() ?>"/>
+        <div class="btn-frame">
+            <input type="submit" value="登録" class="btn"/>
+            <div id="memo_submit_message"></div>
+          </div>
+      </form>
+    </div>
+    <div class="btn-frame">
+      <a href="<?= getAppUrl() ?>">ホーム画面に戻る</a>
+    </div>
+  </body>
+</html>

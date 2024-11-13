@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+  </head>
+  <body>
+      <? 
+      var data = getShift();
+      var year = getYear(data[0][1]);
+      var month = getMonth(data[0][1]);
+      
+      for(var i=1; i<data[0].length; i++){
+        var cellValue = data[0][i];
+        var dayOfWeek = getDayOfWeek(cellValue);
+        var day = getDay(cellValue) + "(" + dayOfWeek + ")";
+        data[0][i] = { day: day, dayOfWeek: dayOfWeek };
+      }
+
+      var htmlTable = "<table border='1'>";
+      for (var i = 0; i < data.length; i++) {
+        htmlTable += "<tr>";
+        for (var j = 0; j < data[i].length; j++) {
+          var cellData = data[i][j];
+          if (typeof cellData === 'object') {
+            var style = "";
+            if (cellData.dayOfWeek === '土') {
+              style = "style='color:blue; background-color: #f0f8ff;'";  // 土曜日は青、背景色を薄い青
+            } else if (cellData.dayOfWeek === '日') {
+              style = "style='color:red; background-color: #ffebee;'";  // 日曜日は赤、背景色を薄い赤
+            } else {
+              style = "style='background-color: #f5f5f5;'"; // 平日の日付は薄いグレー
+            }
+            htmlTable += "<td " + style + ">" + cellData.day + "</td>";
+          } else {
+            htmlTable += "<td>" + cellData + "</td>";
+          }
+        }
+        htmlTable += "</tr>";
+      }
+      htmlTable += "</table>";
+      ?>
+    <h3>シフト表：<?=year?>年<?=month?>月分</h3>
+    <?!= htmlTable?>
+    <div class="btn-frame">
+      <a href="<?= getAppUrl() ?>">ホーム画面に戻る</a>
+    </div>
+  </body>
+</html>

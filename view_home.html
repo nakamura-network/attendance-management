@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+  </head>
+  <body>
+    <div>
+      <span>喫茶「coffee」:</span>
+      <span>勤怠管理システム</span>
+    </div>
+    <h3>
+      <a href="<?= getAppUrl() ?>?page=<?= 'shift' ?>">シフト表確認</a>
+    </h3>
+    <div>
+      <h3>従業員一覧</h3>
+      <div></div>
+      <table border="1">
+        <thead>
+          <th>従業員番号</th>
+          <th>名前</th>
+        </thead>
+        <tbody>
+          <?
+          var record = getEmployees();
+          for (var i = 0; i <= record.length - 1; i++) {
+            var id = record[i]["id"]
+            var name = record[i]["name"]
+            var status = homeGetEmployeeStatus(id)
+            var className = ""
+            if (status == '勤務中') {
+              className = 'working';
+            } else if (status == '休憩中') {
+              className = 'on-break';
+            } else if (status == '退勤済') {
+              className = 'clocked-out';
+            }
+          ?>
+          <tr class="<?= className ?>">
+            <th>
+              <a href="<?= getAppUrl() ?>?empId=<?= id ?>"><?= id ?></a>
+            </th>
+            <th>
+              <?= name ?>
+            </th>
+          </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <span class="green">緑: 勤務中</span>
+    </div>
+    <div>
+      <span class="yellow">黄: 休憩中</span>
+    </div>
+    <div>
+      <span class="red">赤: 退勤済</span>
+    </div>
+  </body>
+</html>
